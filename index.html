@@ -334,6 +334,7 @@
           //listen for stream-message from agent later on here
           await agentClient.join(AGORA_APP_ID, currentAgentChannelName, null, "PlayerA");
           await agentClient.publish(localAgentAudioTrack);
+          localAgentAudioTrack.setVolume(100);
 
           updateStatus(`Place your ships! (${shipsToPlace} remaining)`);
         } catch (err) {
@@ -481,6 +482,7 @@
           //listen for stream-message from agent later on here
           await agentClient.join(AGORA_APP_ID, currentAgentChannelName, null, "PlayerB");
           await agentClient.publish(localAgentAudioTrack);
+          localAgentAudioTrack.setVolume(0);
 
           updateStatus(`Place your ships! (${shipsToPlace} remaining)`);
         } catch (err) {
