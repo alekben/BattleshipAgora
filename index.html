@@ -310,7 +310,7 @@
           localVideoTrack.play("localVideo");
 
           currentChannelName = "battleship_" + Math.floor(Math.random() * 999999);
-          currentAgentChannelName = currentChannelName + "_agent";
+          currentAgentChannelName = currentChannelName + "_agenta";
           isPlayerA = true;
 
           resetBoards();
@@ -459,7 +459,7 @@
           localVideoTrack.play("localVideo");
 
           currentChannelName = chName;
-          currentAgentChannelName = currentChannelName + "_agent";
+          currentAgentChannelName = currentChannelName + "_agentb";
           isPlayerA = false;
 
           resetBoards();
@@ -1352,13 +1352,14 @@
                     showNotification(`${isPlayerA ? "Player A" : "Player B"} attacked [${letter}, ${number}]`);
                 } else {
                   console.log("Invalid coordinate:", messageDataJson.text);
+                  showNotification("Invalid coordinates! Try again.");
                 }
-              } else {
-                updateMessageLog(`${isPlayerA ? "Agent A" : "Agent B"}: ${messageDataJson.text}`);
-              }
-            } else {
+              } 
               //this is agent transcript
-              console.log("Player message:", messageDataJson.text);
+              updateMessageLog(`${isPlayerA ? "Agent A" : "Agent B"}: ${messageDataJson.text}`);
+            } else {
+              //this is user transcript
+              //console.log("Player message:", messageDataJson.text);
               updateMessageLog(`${isPlayerA ? "Player A" : "Player B"}: ${messageDataJson.text}`);
             }
 
