@@ -366,7 +366,7 @@
           const data = await resp.json();
           // Channels with user_count=1
           const channels = data || [];
-          const oneUser = data.filter((ch) => ch.user_count === 1 && !/_agent.*$/.test(ch.channel_name));
+          const oneUser = data.filter((ch) => ch.user_count === 1 && !/_agent.*$/.test(ch.channel_name) && ch.channel_name.startsWith('battleship'));
           return oneUser;
         } catch (err) {
           console.error("Error listing channels:", err);
@@ -394,7 +394,7 @@
           const data = await resp.json();
           // Channels with user_count=1
           const channels = data || [];
-          const oneUser = data.filter((ch) => ch.user_count === 2 && !/_agent.*$/.test(ch.channel_name));
+          const oneUser = data.filter((ch) => ch.user_count === 2 && !/_agent.*$/.test(ch.channel_name) && ch.channel_name.startsWith('battleship'));
           return oneUser;
         } catch (err) {
           console.error("Error listing channels:", err);
