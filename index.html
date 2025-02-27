@@ -211,6 +211,7 @@
 
           agentClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
           setupAgentAClientMediaHandlers();
+          agentClient.on("stream-message", handleAgentStreamMessage);
           //listen for stream-message from agent later on here
           await agentClient.join(AGORA_APP_ID, currentAgentChannelName, null, "PlayerA");
           await agentClient.publish(localAgentAudioTrack);
@@ -302,6 +303,7 @@
 
           agentClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
           setupAgentBClientMediaHandlers();
+          agentClient.on("stream-message", handleAgentStreamMessage);
           //listen for stream-message from agent later on here
           await agentClient.join(AGORA_APP_ID, currentAgentChannelName, null, "PlayerB");
           await agentClient.publish(localAgentAudioTrack);
@@ -374,7 +376,7 @@
           agentAudioTrack = null;
         }
         if (localAgentAudioTrack) {
-          localAgentAudioTrack.stop();
+          localAgentAudioTrack.close();
           localAgentAudioTrack = null;
         }
         // Hide rotate button and ship info
@@ -462,6 +464,7 @@
 
         // Switch turns immediately
         isMyTurn = false;
+        localAgentAudioTrack.setVolume(0);
         updateStatus("Waiting for opponent...");
 
         client.sendStreamMessage(msgStr).catch((err) => {
@@ -469,6 +472,7 @@
           showNotification("Failed to send attack!");
           // Restore turn if attack failed
           isMyTurn = true;
+          localAgentAudioTrack.setVolume(100);
           updateStatus("Your turn!");
         });
       }
@@ -1067,6 +1071,15 @@
         console.log("Agent state:", data);
         } catch (err) {
           console.error("Error: " + err);
+        }
+      }
+
+      function handleAgentStreamMessage(uid, msgData) {
+        // Only handle messages from your own agent
+        if (uid === (isPlayerA ? "AgentA" : "AgentB")) {
+          const decoder = new TextDecoder();
+          const msgStr = decoder.decode(msgData);
+          console.log(`Received message from ${uid}:`, msgStr);
         }
       }
     </script>
