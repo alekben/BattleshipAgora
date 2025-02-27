@@ -44,6 +44,16 @@
       </button>
     </div>
 
+    <!-- Game Instructions (Only visible for players) -->
+    <div id="gameInstructions" class="hidden mb-6 bg-gray-800 p-4 rounded-lg text-gray-200 space-y-2 max-w-2xl mx-auto">
+      <h3 class="font-bold text-lg mb-2">Game Instructions:</h3>
+      <ol class="list-decimal list-inside space-y-2">
+        <li>Place your ships after starting or joining a game</li>
+        <li>After the game starts, say "Fire COORDINATES" to perform a move (ex. "Fire B4"), or click a cell to attack</li>
+        <li>Say "Attack for me" for a random attack</li>
+      </ol>
+    </div>
+
     <!-- Add this after the Buttons Row div and before the Channel List div -->
     <div class="flex space-x-4 mb-6">
       <button
@@ -214,6 +224,7 @@
       let myShips = Array(10).fill(null).map(() => Array(10).fill(false));
       let isMyTurn = false; // Track whose turn it is
       let isPlacingShips = false; // Track if we're in ship placement phase
+      let shipPlacementStarted = false; //keep this false until playerA starts ship placement
       let totalHits = 0; // Track total successful hits
       let currentShipType = 0; // Index into SHIPS array
       let currentShipOrientation = 'horizontal'; // or 'vertical'
@@ -289,6 +300,8 @@
           startBtn.classList.add('opacity-50', 'cursor-not-allowed');
           endBtn.disabled = false;
           endBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          // Show game instructions
+          document.getElementById('gameInstructions').classList.remove('hidden');
           // Create and acquire media tracks first
           [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
           localAgentAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
@@ -303,7 +316,7 @@
           resetBoards();
           boardsContainer.classList.remove("hidden");
           channelListDiv.classList.add("hidden");
-          startShipPlacement();
+          //startShipPlacement();
 
           // Create client and set up event handlers
           client = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" });
@@ -435,6 +448,8 @@
           startBtn.classList.add('opacity-50', 'cursor-not-allowed');
           endBtn.disabled = false;
           endBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          // Show game instructions
+          document.getElementById('gameInstructions').classList.remove('hidden');
           // Create and acquire media tracks first
           [localAudioTrack, localVideoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
           localAgentAudioTrack = await AgoraRTC.createMicrophoneAudioTrack();
@@ -498,6 +513,9 @@
         document.getElementById('agentMessages').innerHTML = '';
         isMessageLogVisible = false;
         agentMessages = [];
+
+        // Hide game instructions
+        document.getElementById('gameInstructions').classList.add('hidden');
 
         // Reset video outlines
         const localVideo = document.getElementById("localVideo");
@@ -564,6 +582,7 @@
         currentAgentChannelName = null;
         isPlayerA = false;
         myAgentsId = null;
+        shipPlacementStarted = false;
         boardsContainer.classList.add("hidden");
         channelListDiv.classList.add("hidden");
         updateStatus("Idle...");
@@ -697,9 +716,9 @@
         bothPlayersReady = true;
         //join respective agent
         if (isPlayerA) {
-            startAgent("AgentA", currentAgentChannelName, "AgentA", "PlayerA", "You are acting as a commentator for a game of Battleship. You are only to respond when you hear the word Fire followed by a letter and number, which are coordinates on the board. For example, I will say Fire B4 and you should then respond with Acknowledged firing on B4. The coordinates range from A-J and 0-9.Do not respond to anything else.", "Welcome to Battleship Agora Player A!");
+            startAgent("AgentA", currentAgentChannelName, "AgentA", "PlayerA", "You are acting as a commentator for a game of Battleship. You are only to respond when you hear the word Fire followed by a letter and number, which are coordinates on the board. For example, I will say Fire B4 and you should then respond with Acknowledged firing on B4. The coordinates range from A-J and 0-9. You will also respond to Choose for me by responding with a letter A-J and a number 0-9. Do not respond to anything else.", "Welcome to Battleship Agora Player A! When it's your turn, Say Fire COORDINATES to attack, or Choose for me attack.");
           } else {
-            startAgent("AgentB", currentAgentChannelName, "AgentB", "PlayerB", "You are acting as a commentator for a game of Battleship. You are only to respond when you hear the word Fire followed by a letter and number, which are coordinates on the board. For example, I will say Fire B4 and you should then respond with Acknowledged firing on B4. The coordinates range from A-J and 0-9. Do not respond to anything else.", "Welcome to Battleship Agora Player B!");
+            startAgent("AgentB", currentAgentChannelName, "AgentB", "PlayerB", "You are acting as a commentator for a game of Battleship. You are only to respond when you hear the word Fire followed by a letter and number, which are coordinates on the board. For example, I will say Fire B4 and you should then respond with Acknowledged firing on B4. The coordinates range from A-J and 0-9. You will also respond to Choose for me by responding with a letter A-J and a number 0-9. Do not respond to anything else.", "Welcome to Battleship Agora Player B! When it's your turn, Say Fire COORDINATES to attack, or Choose for me attack.");
           }
 
           // Set initial turn - Player A goes first
@@ -1109,6 +1128,10 @@
       // Add media event handlers
       function setupMediaHandlers() {
         client.on("user-published", async (user, mediaType) => {
+          if (isPlayerA && !shipPlacementStarted  ) {
+            startShipPlacement();
+            shipPlacementStarted = true;
+          }
           await client.subscribe(user, mediaType);
           
           if (mediaType === "video") {
@@ -1404,6 +1427,8 @@
           startBtn.classList.add('opacity-50', 'cursor-not-allowed');
           endBtn.disabled = false;
           endBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+          // Hide game instructions for audience
+          document.getElementById('gameInstructions').classList.add('hidden');
 
           // Create and acquire media tracks for viewing only
           currentChannelName = chName;
@@ -1419,8 +1444,19 @@
           // Set up special handlers for audience mode
           setupAudienceMediaHandlers();
           client.on("stream-message", handleAudienceStreamMessage);
+          // Generate random 10 character alphanumeric string for audience ID
+          const generateAudienceId = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = 'Audience_';
+            for (let i = 0; i < 10; i++) {
+              result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+          };
 
-          await client.join(AGORA_APP_ID, chName, null, "Audience");
+          const audienceId = generateAudienceId();
+
+          await client.join(AGORA_APP_ID, chName, null, audienceId);
           
           // Send audience joined message
           const msgObj = { type: "audience-joined" };
