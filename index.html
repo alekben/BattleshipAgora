@@ -30,6 +30,12 @@
         List Channels to Join
       </button>
       <button
+        id="joinAudienceBtn"
+        class="px-4 py-2 bg-purple-600 rounded hover:bg-purple-700 font-semibold"
+      >
+        Join As Audience
+      </button>
+      <button
         id="endBtn"
         class="px-4 py-2 bg-red-600 rounded hover:bg-red-700 font-semibold opacity-50 cursor-not-allowed"
         disabled
@@ -181,6 +187,8 @@
 
       const LIST_CHANNELS_ENDPOINT = `https://malb3vrc6lk6qppe3ymsfv63cy0nsjvh.lambda-url.us-east-2.on.aws/`;
 
+      const LIST_CHANNELS_ENDPOINT_TWO_USERS = `https://c2pckxnc7eh7x3cxlgxq6cgihq0qsrqx.lambda-url.us-east-2.on.aws/`;
+
       // Add these ship configuration constants first
       const SHIPS = [
         { name: "Destroyer", length: 2, count: 2 },
@@ -235,6 +243,7 @@
 
       const startBtn         = document.getElementById("startBtn");
       const listChannelsBtn  = document.getElementById("listChannelsBtn");
+      const joinAudienceBtn  = document.getElementById("joinAudienceBtn");
       const endBtn           = document.getElementById("endBtn");
       const channelListDiv   = document.getElementById("channelList");
       const channelsUl       = document.getElementById("channelsUl");
@@ -299,7 +308,7 @@
           startShipPlacement();
 
           // Create client and set up event handlers
-          client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+          client = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" });
           setupMediaHandlers();
           client.on("stream-message", handleStreamMessage);
 
@@ -308,7 +317,7 @@
           // Publish tracks after joining
           await client.publish([localAudioTrack, localVideoTrack]);
 
-          agentClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+          agentClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" });
           setupAgentAClientMediaHandlers();
           agentClient.on("stream-message", handleAgentStreamMessage);
           //listen for stream-message from agent later on here
@@ -353,6 +362,34 @@
         }
       }
 
+      async function listTwoUserChannels() {
+        channelListDiv.classList.add("hidden");
+        channelsUl.innerHTML = "";
+
+        try {
+          // Basic Auth in the request
+          const resp = await fetch(LIST_CHANNELS_ENDPOINT_TWO_USERS, {
+            method: "GET",
+            headers: {
+              "X-Requested-With": "XMLHttpRequest",
+              "Accept": "application/json",
+              "Content-Type": "application/json"
+            }
+          });
+          if (!resp.ok) {
+            throw new Error("REST call failed: " + resp.statusText);
+          }
+          const data = await resp.json();
+          // Channels with user_count=1
+          const channels = data || [];
+          const oneUser = data.filter((ch) => ch.user_count === 1 && !ch.channel_name.endsWith('_agent'));
+          return oneUser;
+        } catch (err) {
+          console.error("Error listing channels:", err);
+          return [];
+        }
+      }
+
       async function showChannelList() {
         updateStatus("Fetching channels with ready players...");
         const oneUserChannels = await listOneUserChannels();
@@ -368,6 +405,25 @@
           li.className = "bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer";
           li.textContent = `${ch.channel_name}`;
           li.onclick = () => joinAsPlayerB(ch.channel_name);
+          channelsUl.appendChild(li);
+        });
+      }
+
+      async function showAudienceChannelList() {
+        updateStatus("Fetching channels with ongoing games...");
+        const TwoUserChannels = await listTwoUserChannels();
+        if (!TwoUserChannels.length) {
+          updateStatus("No channels with ongoing games found, start a new game.");
+          return;
+        }
+
+        channelListDiv.classList.remove("hidden");
+        channelsUl.innerHTML = "";
+        TwoUserChannels.forEach((ch) => {
+          const li = document.createElement("li");
+          li.className = "bg-gray-700 hover:bg-gray-600 p-2 rounded cursor-pointer";
+          li.textContent = `${ch.channel_name}`;
+          li.onclick = () => joinAsAudience(ch.channel_name);
           channelsUl.appendChild(li);
         });
       }
@@ -397,7 +453,7 @@
           channelListDiv.classList.add("hidden");
           startShipPlacement();
 
-          client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+          client = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" });
           setupMediaHandlers();
           client.on("stream-message", handleStreamMessage);
 
@@ -406,7 +462,7 @@
           // Publish tracks after joining
           await client.publish([localAudioTrack, localVideoTrack]);
 
-          agentClient = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+          agentClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "host" });
           setupAgentBClientMediaHandlers();
           agentClient.on("stream-message", handleAgentStreamMessage);
           //listen for stream-message from agent later on here
@@ -621,6 +677,9 @@
               break;
             case "ready":
               handlePlayerReady();
+              break;
+            case "audience-joined":
+              handleAudienceJoined();
               break;
             default:
               console.warn("Unknown message type:", msg.type);
@@ -1126,6 +1185,7 @@
        *****************************************/
       startBtn.onclick = () => startAsPlayerA();
       listChannelsBtn.onclick = () => showChannelList();
+      joinAudienceBtn.onclick = () => showAudienceChannelList();
       endBtn.onclick = () => endSession();
 
       /*****************************************
@@ -1334,6 +1394,121 @@
             }
           }
         };
+
+      async function joinAsAudience(chName) {
+        try {
+          resetGameState();
+          listChannelsBtn.disabled = true;
+          listChannelsBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          joinAudienceBtn.disabled = true;
+          joinAudienceBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          startBtn.disabled = true;
+          startBtn.classList.add('opacity-50', 'cursor-not-allowed');
+          endBtn.disabled = false;
+          endBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+          // Create and acquire media tracks for viewing only
+          currentChannelName = chName;
+          isPlayerA = false;
+
+          resetBoards();
+          boardsContainer.classList.remove("hidden");
+          channelListDiv.classList.add("hidden");
+
+          // Create client as audience
+          client = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "audience" });
+          
+          // Set up special handlers for audience mode
+          setupAudienceMediaHandlers();
+          client.on("stream-message", handleAudienceStreamMessage);
+
+          await client.join(AGORA_APP_ID, chName, null, "Audience");
+          
+          // Send audience joined message
+          const msgObj = { type: "audience-joined" };
+          client.sendStreamMessage(JSON.stringify(msgObj)).catch((err) => {
+            console.warn("Error sending audience joined message:", err);
+          });
+
+          updateStatus("Joined as audience - waiting for game state...");
+        } catch (err) {
+          console.error(err);
+          updateStatus("Error joining as audience: " + err.message);
+        }
+      }
+
+      function setupAudienceMediaHandlers() {
+        client.on("user-published", async (user, mediaType) => {
+          await client.subscribe(user, mediaType);
+          
+          if (mediaType === "video") {
+            // Create video container if it doesn't exist
+            const containerA = document.querySelector("#myBoard").parentElement.parentElement;
+            const containerB = document.querySelector("#enemyBoard").parentElement.parentElement;
+            
+            let videoContainer;
+            if (user.uid === "PlayerA") {
+              videoContainer = containerA.querySelector(".remote-video") || 
+                             createVideoContainer(containerA, "PlayerA");
+            } else if (user.uid === "PlayerB") {
+              videoContainer = containerB.querySelector(".remote-video") || 
+                             createVideoContainer(containerB, "PlayerB");
+            }
+            
+            if (videoContainer) {
+              user.videoTrack.play(videoContainer);
+            }
+          } else if (mediaType === "audio") {
+            user.audioTrack.play();
+          }
+        });
+      }
+
+      function createVideoContainer(parentContainer, playerId) {
+        const videoDiv = document.createElement("div");
+        videoDiv.className = "remote-video w-48 h-36 bg-gray-800 rounded mt-4";
+        videoDiv.id = `remote-video-${playerId}`;
+        parentContainer.appendChild(videoDiv);
+        return videoDiv;
+      }
+
+      function handleAudienceJoined() {
+        // Send current board state to audience
+        if (client) {
+          const boardState = {
+            type: "board-state",
+            isPlayerA: isPlayerA,
+            board: myBoardState,
+            ships: myShips
+          };
+          client.sendStreamMessage(JSON.stringify(boardState)).catch(err => {
+            console.warn("Error sending board state to audience:", err);
+          });
+        }
+      }
+
+      function handleAudienceStreamMessage(uid, msgData) {
+        const decoder = new TextDecoder();
+        const msgStr = decoder.decode(msgData);
+
+        try {
+          const msg = JSON.parse(msgStr);
+          
+          if (msg.type === "board-state") {
+            // Update the appropriate board based on player info
+            if (msg.isPlayerA) {
+              myBoardState = msg.board;
+              myShips = msg.ships;
+              renderMyBoard();
+            } else {
+              enemyBoardState = msg.board;
+              renderEnemyBoard();
+            }
+          }
+        } catch (e) {
+          console.error("Error handling audience message:", e);
+        }
+      }
 
     </script>
   </body>
