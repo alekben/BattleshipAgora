@@ -1531,14 +1531,15 @@
 
           await client.join(AGORA_APP_ID, chName, null, audienceId);
           
-          // Add 10-second delay before joining the first agent channel
-          await new Promise(resolve => setTimeout(resolve, 10000));
+
           await agentClient.join(AGORA_APP_ID, currentAgentAChannelName, null, audienceId);
 
           //join to agent channels here
           agentClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "audience" });
           agentClient.on("user-published", async (user, mediaType) => {
             if (mediaType === "audio") {
+              // Add 10-second delay before subscribing to agent audio
+              await new Promise(resolve => setTimeout(resolve, 10000));
               await agentClient.subscribe(user, mediaType);
               user.audioTrack.play();
             }
@@ -1553,8 +1554,6 @@
             }
           });
 
-          // Add 10-second delay before joining the second agent channel
-          await new Promise(resolve => setTimeout(resolve, 10000));
           await audienceSpecialClient.join(AGORA_APP_ID, currentAgentBChannelName, null, audienceId);
 
           updateStatus("Joined as audience - waiting for game state...");
