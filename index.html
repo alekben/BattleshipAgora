@@ -1676,7 +1676,9 @@
               //shownotehere
               const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
               const truCol = msg.col + 1;
-            showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
+              if (msg.row) {
+                showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
+              }
             }
           } else if (msg.type === "attack_audience") {
             //attack audience handling
