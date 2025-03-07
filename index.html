@@ -889,6 +889,15 @@
         const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
         const truCol = msg.col + 1;
         showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
+
+        const audienceMsg = {
+          type: "attack_audience",
+          row: msg.row,
+          col: msg.col,
+          isPlayerA: isPlayerA
+        };
+
+        client.sendStreamMessage(JSON.stringify(audienceMsg));
         updateStatus("Waiting for opponent...");
       }
 
@@ -1522,7 +1531,9 @@
 
           await client.join(AGORA_APP_ID, chName, null, audienceId);
           
-
+          // Add 10-second delay before joining the first agent channel
+          await new Promise(resolve => setTimeout(resolve, 10000));
+          await agentClient.join(AGORA_APP_ID, currentAgentAChannelName, null, audienceId);
 
           //join to agent channels here
           agentClient = AgoraRTC.createClient({ mode: "live", codec: "vp8", role: "audience" });
@@ -1541,6 +1552,9 @@
               user.audioTrack.play();
             }
           });
+
+          // Add 10-second delay before joining the second agent channel
+          await new Promise(resolve => setTimeout(resolve, 10000));
           await audienceSpecialClient.join(AGORA_APP_ID, currentAgentBChannelName, null, audienceId);
 
           updateStatus("Joined as audience - waiting for game state...");
@@ -1650,11 +1664,24 @@
               myBoardState = msg.board;
               myShips = msg.ships;
               renderMyBoard();
+              //shownotehere
+              const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
+              const truCol = msg.col + 1;
+              showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
             } else {
               enemyBoardState = msg.board;
               myShips2 = msg.ships;
               renderMyBoard2();
+              //shownotehere
+              const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
+              const truCol = msg.col + 1;
+            showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
             }
+          } else if (msg.type === "attack_audience") {
+            //attack audience handling
+            const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
+            const truCol = msg.col + 1;
+            showNotification(`${msg.isPlayerA ? "Player A" : "Player B"} attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
           }
         } catch (e) {
           console.error("Error handling audience message:", e);
