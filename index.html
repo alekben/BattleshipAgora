@@ -1655,39 +1655,39 @@
         const msgStr = decoder.decode(msgData);
 
         try {
-          const msg = JSON.parse(msgStr);
-          
-          if (msg.type === "board-state") {
-            // Update the appropriate board based on player info
-            if (msg.isPlayerA) {
-              myBoardState = msg.board;
-              myShips = msg.ships;
-              renderMyBoard();
-              //shownotehere
-              const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
-              const truCol = msg.col + 1;
-              if (msg.row) {
-                showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
-              }
-            } else {
-              enemyBoardState = msg.board;
-              myShips2 = msg.ships;
-              renderMyBoard2();
-              //shownotehere
-              const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
-              const truCol = msg.col + 1;
-              if (msg.row) {
-                showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
-              }
-            }
-          } else if (msg.type === "attack_audience") {
-            //attack audience handling
-            const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
-            const truCol = msg.col + 1;
-            showNotification(`${msg.isPlayerA ? "Player A" : "Player B"} attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
-          } else if (msg === "end_session") {
-            //end session handling
+          if (msgStr === "end_session") {
             leaveAsAudience();
+          } else {
+            const msg = JSON.parse(msgStr);
+            if (msg.type === "board-state") {
+              // Update the appropriate board based on player info
+              if (msg.isPlayerA) {
+                myBoardState = msg.board;
+                myShips = msg.ships;
+                renderMyBoard();
+                //shownotehere
+                const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
+                const truCol = msg.col + 1;
+                if (msg.row) {
+                  showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
+                }
+              } else {
+                enemyBoardState = msg.board;
+                myShips2 = msg.ships;
+                renderMyBoard2();
+                //shownotehere
+                const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
+                const truCol = msg.col + 1;
+                if (msg.row) {
+                 showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
+                }
+              }
+            } else if (msg.type === "attack_audience") {
+              //attack audience handling
+              const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
+              const truCol = msg.col + 1;
+              showNotification(`${msg.isPlayerA ? "Player A" : "Player B"} attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
+            }
           }
         } catch (e) {
           console.error("Error handling audience message:", e);
