@@ -1409,6 +1409,36 @@
         }
       }
 
+      async function agentSpeakGreg(name, say) {
+        // agentSpeach deployed on Lambda
+        const url = "https://frpvvaus274tbb3drdvq7s2kpu0lquqr.lambda-url.us-east-2.on.aws/";
+        
+        const headers = {
+          "X-Requested-With": "XMLHttpRequest",
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        };
+
+        // Build request
+        const reqBody = {
+          agentname: name,
+          text: say
+        };
+
+        try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(reqBody)
+        });
+        if (resp.status === 200) {
+          console.log(`Agent ${name} told to speak ${say}`);
+        }
+        } catch (err) {
+          console.error("Error: " + err);
+        }
+      }
+
       // Add this new function to handle the message log
       function toggleMessageLog() {
         if (!bothPlayersReady) return;
