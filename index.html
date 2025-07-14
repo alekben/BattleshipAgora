@@ -664,7 +664,8 @@
             // Enemy board cell
             const enemyCell = document.createElement("div");
             enemyCell.className = "h-7 w-7 bg-gray-700 border border-gray-600 cursor-pointer";
-            enemyCell.onclick = () => attackCell(r, c);
+            enemyCell.onclick = () => agentThink(currentAgentChannelName, "Attack ", r, c);
+            //enemyCell.onclick = () => attackCell(r, c);
             enemyBoardEl.appendChild(enemyCell);
           }
         }
@@ -1315,6 +1316,10 @@
        * * 9) Agent Stuff
        *****************************************/
       async function startAgent(name, chan, uid, remoteUid, prompt, message) {
+
+        //user currentAgentChannelName as Agent RTM UID to prevent collision
+
+        
         // joinAgent deployed on Lambda
         const url = "https://fcnfih4dgp6sysnjl4ywyazkze0gwvhg.lambda-url.us-east-2.on.aws";
         
@@ -1329,6 +1334,8 @@
           agentname: name,
           channel: chan,
           agentuid: uid,
+          agentrtmuid: chan,
+          rtmflag: true,
           remoteuid: remoteUid,
           prompt: prompt,
           message: message
@@ -1409,9 +1416,15 @@
         }
       }
 
-      async function agentSpeakGreg(name, say) {
-        // agentSpeach deployed on Lambda
-        const url = "https://frpvvaus274tbb3drdvq7s2kpu0lquqr.lambda-url.us-east-2.on.aws/";
+      async function agentThink(uid, message, r, c) {
+
+        //convert r to a letter, where 0->A, 1->B, etc
+        const letter = String.fromCharCode('A'.charCodeAt(0) + r);
+        const col = c + 1;
+        const finalMessage = message + letter + col;
+
+        // agentThink deployed on Lambda
+        const url = "https://catzwboegapngwhmrrkjs7m5x40vwoej.lambda-url.us-east-2.on.aws/";
         
         const headers = {
           "X-Requested-With": "XMLHttpRequest",
@@ -1421,8 +1434,8 @@
 
         // Build request
         const reqBody = {
-          agentname: name,
-          text: say
+        agentuid: uid,
+        text: finalMessage,
         };
 
         try {
@@ -1432,12 +1445,14 @@
           body: JSON.stringify(reqBody)
         });
         if (resp.status === 200) {
-          console.log(`Agent ${name} told to speak ${say}`);
+          console.log(`Agent ${uid} sent message ${message}`);
         }
         } catch (err) {
           console.error("Error: " + err);
         }
       }
+
+     
 
       // Add this new function to handle the message log
       function toggleMessageLog() {
@@ -1491,38 +1506,34 @@
             if (parseInt(messagePart) === parseInt(messageChunks))
               messagesMap.delete(messageId);
             else return;
-            // messageData example: {"object": "assistant.transcription", "text": "Acknowledged firing on B6.", "start_ms": 1741209891808, "duration_ms": 0, "language": "", "quiet": false, "reasoning": false, "turn_id": 2, "turn_seq_id": 0, "turn_status": 1, "stream_id": 0, "user_id": "", "words": null, "message_id": "d9a0c6a5", "data_type": "transcribe"}
-            // messageData {"object": "message.interrupt", "turn_id": 1, "start_ms": 1741209887626, "data_type": "message", "message_id": "0d60e87e", "send_ts": 1741209887626}
-            // messageData {"object": "user.transcription", "text": "fire ", "final": false, "start_ms": 1741209887322, "duration_ms": 840, "language": "en-US", "turn_id": 2, "stream_id": 10016, "user_id": "10016", "words": null, "message_id": "ab8b990a", "data_type": "transcribe"}
-            // messageData {"object": "user.transcription", "text": "Fire B6 ", "final": false, "start_ms": 1741209887322, "duration_ms": 1960, "language": "en-US", "turn_id": 2, "stream_id": 10016, "user_id": "10016", "words": null, "message_id": "d6d42005", "data_type": "transcribe"}
-            // messageData {"object": "user.transcription", "text": "Firebird 6", "final": true, "start_ms": 1741209887322, "duration_ms": 1960, "language": "en-US", "turn_id": 2, "stream_id": 10016, "user_id": "10016", "words": null, "message_id": "548f409f", "data_type": "transcribe"}
-            // messageData {"object": "assistant.transcription", "text": "Acknowledged firing on B6.", "start_ms": 1741209891801, "duration_ms": 0, "language": "", "quiet": false, "reasoning": false, "turn_id": 2, "turn_seq_id": 0, "turn_status": 0, "stream_id": 0, "user_id": "", "words": null, "message_id": "fcd0b8e2", "data_type": "transcribe"}
-            // messageData {"object": "assistant.transcription", "text": "Acknowledged firing on B6.", "start_ms": 1741209891808, "duration_ms": 0, "language": "", "quiet": false, "reasoning": false, "turn_id": 2, "turn_seq_id": 0, "turn_status": 1, "stream_id": 0, "user_id": "", "words": null, "message_id": "d9a0c6a5", "data_type": "transcribe"}
-            // messageData {"object": "message.interrupt", "turn_id": 2, "start_ms": 1741209897852, "data_type": "message", "message_id": "2b0857d7", "send_ts": 1741209897852}
-            //console.log("messageData", messageData);
+
             const messageDataJson = JSON.parse(messageData);
+            //console.log("messageDataJson", messageDataJson);
             if (messageDataJson.object === "assistant.transcription") {
               //this is agent transcript
               if (!messageDataJson?.turn_status) return;
               console.log("Agent message:", messageDataJson.text);
               
-              // Search for capital letter followed by number pattern
-              const match = messageDataJson.text.match(/([A-J])(1[0]|[1-9])/);
-              if (match) {
-                const [_, letter, number] = match;
-                if (letter >= 'A' && letter <= 'J' && 
+              //Search for the work "Acknowledged" first, to exclude Agent responses that are instructions
+              if (messageDataJson.text.includes("Acknowledged")) {
+                // Search for capital letter followed by number pattern
+                const match = messageDataJson.text.match(/([A-J])(1[0]|[1-9])/);
+                if (match) {
+                  const [_, letter, number] = match;
+                  if (letter >= 'A' && letter <= 'J' && 
                     parseInt(number) >= 1 && parseInt(number) <= 10) {
                     const letterNum = letter.charCodeAt(0) - 'A'.charCodeAt(0); // Convert A->0, B->1, etc
                     console.log("Valid coordinate:", letter + number);
                     attackCell(letterNum, parseInt(number) - 1, letter, number); // Subtract 1 since board is 0-indexed
-                } else {
-                  console.log("Invalid coordinate:", messageDataJson.text);
-                  showNotification("Invalid coordinates! Try again.");
-                }
+                  } else {
+                    console.log("Invalid coordinate:", messageDataJson.text);
+                    showNotification("Invalid coordinates! Try again.");
+                  }
+                } 
               } 
               //this is agent transcript
               updateMessageLog(`${isPlayerA ? "Agent A" : "Agent B"}: ${messageDataJson.text}`);
-            } else {
+              } else {
               //this is user transcript
               if (!messageDataJson?.final) return;
               console.log("Player message:", messageDataJson.text);
