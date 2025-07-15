@@ -702,11 +702,13 @@
         
         if (!isMyTurn) {
           showNotification("Not your turn!");
+          agentSpeak(myAgentsId, `Wait your turn ${isPlayerA ? "Player A" : "Player B"}!`);
           return;
         }
 
         if (enemyBoardState[row][col] !== 0) {
           showNotification("Cell already attacked!");
+          agentSpeak(myAgentsId, `That area is already decimated ${isPlayerA ? "Player A" : "Player B"}!`, "INTERRUPT", false);
           return;
         }
 
@@ -890,6 +892,7 @@
         const truRow = String.fromCharCode('A'.charCodeAt(0) + msg.row);
         const truCol = msg.col + 1;
         showNotification(`Your attack at [${truRow}, ${truCol}] => ${msg.isHit ? "HIT!" : "MISS"}`);
+        agentSpeak(myAgentsId, `${isPlayerA ? "Player A" : "Player B"} ${msg.isHit ? "HIT!" : "MISS"}!`, "APPEND", false);
 
         const audienceMsg = {
           type: "attack_audience",
@@ -1153,6 +1156,11 @@
       // Add this new function to handle game over
       function showGameOver(isWinner) {
         // Create game over overlay
+
+        if (isWinner) {
+          agentSpeak(myAgentsId, `${isPlayerA ? "Player A" : "Player B"} sunk all of ${isPlayerA ? "Player B" : "Player A"}s battleships! Congratulations!`);
+        }
+
         const overlay = document.createElement('div');
         overlay.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
         
@@ -1386,7 +1394,7 @@
         }
       }
 
-      async function agentSpeak(name, say) {
+      async function agentSpeak(name, say, priority = "INTERRUPT", interruptable = false) {
         // agentSpeach deployed on Lambda
         const url = "https://sy4buqmztanuleorrcmugynpza0vanhu.lambda-url.us-east-2.on.aws/";
         
@@ -1399,7 +1407,9 @@
         // Build request
         const reqBody = {
           agentname: name,
-          text: say
+          text: say,
+          priority: priority,
+          interruptable: interruptable
         };
 
         try {
